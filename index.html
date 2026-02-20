@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Oráculo da Intuição</title>
+    
+    <!-- Configurações de Web App (PWA) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Oráculo">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <!-- Ícones de Atalho (Placeholder usando UI Avatars para o ícone não ficar vazio) -->
+    <link rel="apple-touch-icon" href="https://ui-avatars.com/api/?name=O+I&background=4f46e5&color=fff&size=180">
+    <link rel="icon" type="image/png" href="https://ui-avatars.com/api/?name=O+I&background=4f46e5&color=fff&size=32">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react-dom": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.344.0",
+            "clsx": "https://esm.sh/clsx@2.1.0",
+            "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.1"
+        }
+    }
+    </script>
+    <style>
+        /* Ajuste para evitar scroll elástico em iOS e garantir altura total */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #root {
+            height: 100%;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased">
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect, useMemo } from 'react';
+        import { createRoot } from 'react-dom';
+        import { 
+            Sparkles, History, Trash2, PenTool, Smile, Cloud, Zap, Coffee,
+            Flame, AlertCircle, Frown, ShieldAlert, Sun, Tag, LayoutDashboard,
+            MessageCircle, Heart, ThumbsDown, PartyPopper
+        } from 'lucide-react';
+        import { clsx } from 'clsx';
+        import { twMerge } from 'tailwind-merge';
+
+        function cn(...inputs) {
+            return twMerge(clsx(inputs));
+        }
+
+        const PROMPTS = {
+            ansioso: [
+                "O que exatamente está sob meu controlo neste exato momento?",
+                "Se eu pudesse delegar esta preocupação para o futuro, o que faria hoje?",
+                "Qual sensação física no meu corpo precisa de atenção agora?",
+                "O que o meu 'eu' do futuro diria sobre esta situação daqui a um ano?",
+                "Se esta ansiedade fosse um vento, para onde estaria a tentar soprar-me?"
+            ],
+            triste: [
+                "Qual pequena vitória tive hoje que passou despercebida?",
+                "O que esta tristeza está a tentar proteger ou comunicar-me?",
+                "Qual seria o gesto mais gentil que eu poderia ter comigo mesmo agora?",
+                "Se eu pudesse abraçar a minha dor, o que ela me sussurraria?",
+                "Quais são as três coisas simples que ainda trazem cor ao meu mundo?"
+            ],
+            energizado: [
+                "Como posso canalizar esta vitalidade para um projeto que amo?",
+                "O que me trouxe esta energia e como posso replicar isto amanhã?",
+                "Qual é o próximo passo audaz que estou pronto para dar?",
+                "Quem mais poderia beneficiar deste entusiasmo que sinto agora?",
+                "Como posso ancorar esta sensação para lembrá-la em dias nublados?"
+            ],
+            reflexivo: [
+                "Qual padrão de comportamento percebi em mim na última semana?",
+                "Se a minha vida fosse um livro, como se chamaria o capítulo atual?",
+                "O que diria para a minha versão de 5 anos atrás se nos encontrássemos hoje?",
+                "Qual silêncio meu está a precisar de palavras agora?",
+                "Se eu parasse de tentar agradar os outros, o que faria diferente hoje?"
+            ],
+            raivoso: [
+                "Qual limite meu foi atravessado para que eu sinta esta raiva?",
+                "Se esta raiva fosse uma ferramenta de construção, o que ela criaria?",
+                "O que esta chama está a tentar defender dentro de mim?",
+                "O que aconteceria se eu transformasse esta força numa ação assertiva?",
+                "Por trás desta raiva, qual necessidade minha não foi atendida?"
+            ],
+            irritado: [
+                "Esta irritação é sobre o agora ou é um acumular de coisas não ditas?",
+                "Qual pequeno ajuste no meu ambiente traria um pouco de alívio imediato?",
+                "O que estou a tentar apressar que o tempo pede paciência?",
+                "Se eu pudesse respirar fundo e soltar um peso, qual peso seria?",
+                "Como posso expressar este incómodo de forma a que eu seja ouvido?"
+            ],
+            preocupado: [
+                "Esta preocupação é um sinal de cuidado ou um hábito de medo?",
+                "Quais evidências reais eu tenho de que o pior cenário vai acontecer?",
+                "Como lidaria com isto se eu soubesse que sou incapaz de falhar?",
+                "Qual é o primeiro pequeno passo para resolver o que me aflige?",
+                "O que eu ganho e o que eu perco ao manter este pensamento em loop?"
+            ],
+            tranquilo: [
+                "Como posso honrar este estado de paz e levá-lo para outras áreas da vida?",
+                "O que permitiu que eu me sentisse assim hoje?",
+                "Qual é a semente de gratidão que floresce neste silêncio?",
+                "A quem eu gostaria de enviar um pensamento de paz neste momento?",
+                "Como a minha tranquilidade pode influenciar as pessoas ao meu redor?"
+            ],
+            confortavel: [
+                "O que no meu ambiente atual me traz esta sensação de segurança?",
+                "Como posso cultivar mais espaços como este na minha rotina?",
+                "Quem são as pessoas que me fazem sentir em casa?",
+                "O que esta sensação de 'pertença' me permite criar agora?",
+                "Qual parte de mim se sente mais acolhida neste conforto?"
+            ],
+            decepcionado: [
+                "O que esta decepção revela sobre as expectativas que alimentei?",
+                "Qual lição valiosa está escondida por trás deste desapontamento?",
+                "Como posso ser mais honesto comigo mesmo sobre o que realmente aconteceu?",
+                "Se eu perdoasse a mim mesmo ou ao outro, o que mudaria?",
+                "Como posso reconstruir o meu caminho a partir desta nova realidade?"
+            ],
+            feliz: [
+                "Qual é a cor e o som desta felicidade agora?",
+                "Como posso partilhar este brilho com alguém hoje?",
+                "O que eu fiz de diferente para chegar a este estado de plenitude?",
+                "Qual é o pequeno detalhe da vida que me fez sorrir hoje?",
+                "Se este momento fosse uma fotografia, que legenda lhe darias?"
+            ]
+        };
+
+        const MOODS = [
+            { id: 'feliz', label: 'Feliz', icon: PartyPopper, color: 'text-pink-500', bg: 'bg-pink-50', border: 'border-pink-100' },
+            { id: 'confortavel', label: 'Confortável', icon: Heart, color: 'text-rose-400', bg: 'bg-rose-50', border: 'border-rose-100' },
+            { id: 'tranquilo', label: 'Tranquilo', icon: Sun, color: 'text-emerald-500', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+            { id: 'energizado', label: 'Energizado', icon: Zap, color: 'text-yellow-500', bg: 'bg-yellow-50', border: 'border-yellow-100' },
+            { id: 'ansioso', label: 'Ansioso', icon: Cloud, color: 'text-blue-500', bg: 'bg-blue-50', border: 'border-blue-100' },
+            { id: 'preocupado', label: 'Preocupado', icon: ShieldAlert, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
+            { id: 'decepcionado', label: 'Decepcionado', icon: ThumbsDown, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
+            { id: 'irritado', label: 'Irritado', icon: AlertCircle, color: 'text-orange-500', bg: 'bg-orange-50', border: 'border-orange-100' },
+            { id: 'raivoso', label: 'Raivoso', icon: Flame, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
+            { id: 'triste', label: 'Triste', icon: Frown, color: 'text-slate-400', bg: 'bg-slate-100', border: 'border-slate-200' },
+            { id: 'reflexivo', label: 'Reflexivo', icon: Smile, color: 'text-indigo-500', bg: 'bg-indigo-50', border: 'border-indigo-100' },
+            { id: 'melancolico', label: 'Melancólico', icon: Coffee, color: 'text-slate-500', bg: 'bg-slate-100', border: 'border-slate-200' }
+        ];
+
+        PROMPTS.melancolico = PROMPTS.triste;
+
+        function App() {
+            const [view, setView] = useState('oracle');
+            const [step, setStep] = useState('mood');
+            const [selectedMood, setSelectedMood] = useState(null);
+            const [currentPrompt, setCurrentPrompt] = useState("");
+            const [lastPromptIndex, setLastPromptIndex] = useState({});
+            const [journalEntry, setJournalEntry] = useState("");
+            const [history, setHistory] = useState([]);
+            const [isSaving, setIsSaving] = useState(false);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('oraculo_history');
+                if (saved) {
+                    try { setHistory(JSON.parse(saved)); } catch (e) { console.error("Erro no histórico"); }
+                }
+            }, []);
+
+            const saveHistory = (newHistory) => {
+                setHistory(newHistory);
+                localStorage.setItem('oraculo_history', JSON.stringify(newHistory));
+            };
+
+            const handleSintonizar = (moodId) => {
+                setSelectedMood(moodId);
+                setStep('sintonizando');
+                setTimeout(() => {
+                    const pool = PROMPTS[moodId] || PROMPTS.reflexivo;
+                    const prevIndex = lastPromptIndex[moodId];
+                    let newIndex;
+                    do { newIndex = Math.floor(Math.random() * pool.length); } 
+                    while (newIndex === prevIndex && pool.length > 1);
+                    setLastPromptIndex(prev => ({ ...prev, [moodId]: newIndex }));
+                    setCurrentPrompt(pool[newIndex]);
+                    setStep('prompt');
+                }, 1200);
+            };
+
+            const handleSaveEntry = () => {
+                if (!journalEntry.trim()) return;
+                setIsSaving(true);
+                const moodData = MOODS.find(m => m.id === selectedMood);
+                const newEntry = {
+                    id: Date.now(),
+                    date: new Date().toLocaleDateString('pt-PT'),
+                    timestamp: Date.now(),
+                    prompt: currentPrompt,
+                    text: journalEntry,
+                    moodLabel: moodData ? moodData.label : 'Indefinido',
+                    moodId: selectedMood
+                };
+                const updatedHistory = [newEntry, ...history];
+                saveHistory(updatedHistory);
+                setTimeout(() => {
+                    setIsSaving(false);
+                    setJournalEntry("");
+                    setStep('mood');
+                    setSelectedMood(null);
+                }, 800);
+            };
+
+            const deleteEntry = (id) => {
+                const updated = history.filter(item => item.id !== id);
+                saveHistory(updated);
+            };
+
+            const insights = useMemo(() => {
+                if (history.length === 0) return null;
+                const moodCounts = history.reduce((acc, curr) => {
+                    acc[curr.moodId] = (acc[curr.moodId] || 0) + 1;
+                    return acc;
+                }, {});
+                const stopWords = new Set(['o', 'a', 'os', 'as', 'de', 'da', 'do', 'que', 'em', 'um', 'uma', 'e', 'com', 'no', 'na', 'para', 'por', 'me', 'meu', 'minha', 'eu', 'estou', 'foi', 'mais', 'muito', 'quando', 'sobre', 'isso', 'com', 'ao', 'seu', 'sua', 'está', 'ter', 'pode', 'nem', 'dos', 'das']);
+                const wordFreq = {};
+                history.forEach(entry => {
+                    const words = entry.text.toLowerCase().replace(/[^\w\sà-úÀ-Ú]/g, '').split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+                    words.forEach(w => { wordFreq[w] = (wordFreq[w] || 0) + 1; });
+                });
+                const topWords = Object.entries(wordFreq).sort(([, a], [, b]) => b - a).slice(0, 5);
+                return { moodCounts, topWords };
+            }, [history]);
+
+            return React.createElement('div', { className: "max-w-xl mx-auto p-4 sm:p-6 bg-white shadow-xl rounded-2xl my-4 min-h-[90vh] flex flex-col" },
+                React.createElement('nav', { className: "flex p-1 bg-slate-100 rounded-xl mb-6" },
+                    React.createElement('button', { onClick: () => setView('oracle'), className: cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all", view === 'oracle' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500") }, React.createElement(MessageCircle, { size: 16 }), "Oráculo"),
+                    React.createElement('button', { onClick: () => setView('insights'), className: cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold transition-all", view === 'insights' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500") }, React.createElement(LayoutDashboard, { size: 16 }), "Insights")
+                ),
+
+                React.createElement('header', { className: "flex items-center justify-between mb-8 border-b border-slate-100 pb-4" },
+                    React.createElement('div', { className: "flex items-center gap-2" },
+                        React.createElement('div', { className: "bg-indigo-600 p-2 rounded-lg text-white shadow-lg" }, React.createElement(Sparkles, { size: 20 })),
+                        React.createElement('div', null,
+                            React.createElement('h1', { className: "font-bold text-slate-900 text-lg leading-tight" }, "Oráculo da Intuição"),
+                            React.createElement('p', { className: "text-xs text-slate-500" }, view === 'oracle' ? "Sintoniza a tua voz interior" : "A jornada do teu ser")
+                        )
+                    )
+                ),
+
+                React.createElement('main', { className: "flex-grow" },
+                    view === 'oracle' ? (
+                        step === 'mood' ? React.createElement('div', { className: "space-y-6 animate-fade-in" },
+                            React.createElement('div', { className: "text-center space-y-1" },
+                                React.createElement('h2', { className: "text-slate-800 font-bold text-xl" }, "Como te sentes?"),
+                                React.createElement('p', { className: "text-slate-500 text-sm" }, "Escolhe uma energia para começar")
+                            ),
+                            React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-3 gap-3" },
+                                MOODS.map((mood) => React.createElement('button', {
+                                    key: mood.id,
+                                    onClick: () => handleSintonizar(mood.id),
+                                    className: "flex flex-col items-center justify-center p-4 rounded-xl border-2 border-slate-50 bg-slate-50 hover:border-indigo-200 transition-all group"
+                                },
+                                    React.createElement(mood.icon, { className: cn("mb-2 group-hover:scale-110 transition-transform", mood.color), size: 28 }),
+                                    React.createElement('span', { className: "text-xs font-semibold text-slate-700" }, mood.label)
+                                ))
+                            ),
+                            history.length > 0 && React.createElement('div', { className: "mt-12 space-y-4" },
+                                React.createElement('div', { className: "flex items-center gap-2 text-slate-400 px-2" },
+                                    React.createElement(History, { size: 16 }),
+                                    React.createElement('span', { className: "text-sm font-bold uppercase tracking-tighter" }, "Histórico Recente")
+                                ),
+                                React.createElement('div', { className: "space-y-4" },
+                                    history.slice(0, 3).map((item) => {
+                                        const moodMatch = MOODS.find(m => m.id === item.moodId);
+                                        return React.createElement('div', { key: item.id, className: "p-4 rounded-2xl bg-white border border-slate-100 shadow-sm group relative" },
+                                            React.createElement('div', { className: "flex justify-between items-center mb-2" },
+                                                React.createElement('div', { className: "flex items-center gap-2" },
+                                                    React.createElement('span', { className: "text-[10px] font-bold text-slate-400" }, item.date),
+                                                    React.createElement('span', { className: cn("text-[9px] font-black uppercase px-2 py-0.5 rounded-full", moodMatch ? moodMatch.color + " " + moodMatch.bg : "bg-slate-100") }, item.moodLabel)
+                                                ),
+                                                React.createElement('button', { onClick: () => deleteEntry(item.id), className: "text-slate-300 hover:text-red-400 transition-opacity" }, React.createElement(Trash2, { size: 14 }))
+                                            ),
+                                            React.createElement('p', { className: "font-semibold text-slate-800 italic mb-1 text-sm leading-tight" }, `"${item.prompt}"`),
+                                            React.createElement('p', { className: "text-slate-600 text-sm line-clamp-2" }, item.text)
+                                        );
+                                    })
+                                )
+                            )
+                        ) : step === 'sintonizando' ? React.createElement('div', { className: "flex flex-col items-center justify-center h-64 text-center space-y-6" },
+                            React.createElement('div', { className: "relative" },
+                                React.createElement('div', { className: "w-20 h-20 border-4 border-indigo-50 border-t-indigo-600 rounded-full animate-spin" }),
+                                React.createElement(Sparkles, { className: "absolute inset-0 m-auto text-indigo-600 animate-pulse", size: 28 })
+                            ),
+                            React.createElement('h2', { className: "text-xl font-bold text-slate-800" }, "Lendo frequências...")
+                        ) : React.createElement('div', { className: "space-y-6 animate-fade-in" },
+                            React.createElement('div', { className: "bg-indigo-600 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden" },
+                                React.createElement('p', { className: "text-lg font-semibold leading-relaxed relative z-10" }, currentPrompt)
+                            ),
+                            React.createElement('textarea', {
+                                value: journalEntry,
+                                onChange: (e) => setJournalEntry(e.target.value),
+                                placeholder: "Deixa fluir sem julgamentos...",
+                                className: "w-full h-56 p-5 rounded-2xl border-2 border-slate-100 focus:border-indigo-400 transition-all resize-none text-slate-700 bg-slate-50/50"
+                            }),
+                            React.createElement('div', { className: "flex gap-3" },
+                                React.createElement('button', { onClick: () => { setStep('mood'); setJournalEntry(""); }, className: "flex-1 py-4 font-bold text-slate-400" }, "Descartar"),
+                                React.createElement('button', {
+                                    disabled: !journalEntry.trim() || isSaving,
+                                    onClick: handleSaveEntry,
+                                    className: cn("flex-[2] py-4 rounded-2xl font-bold text-white shadow-lg", journalEntry.trim() ? "bg-indigo-600" : "bg-slate-200")
+                                }, isSaving ? "Salvando..." : "Guardar no Oráculo")
+                            )
+                        )
+                    ) : (
+                        React.createElement('div', { className: "space-y-8 animate-fade-in" },
+                            history.length === 0 ? React.createElement('div', { className: "text-center py-20 text-slate-400" },
+                                React.createElement(PenTool, { size: 48, className: "mx-auto mb-4 opacity-20" }),
+                                React.createElement('p', null, "Ainda não há flores no teu jardim.")
+                            ) : React.createElement(React.Fragment, null,
+                                React.createElement('section', { className: "space-y-4" },
+                                    React.createElement('h3', { className: "text-sm font-bold text-slate-800" }, "Mapa de Calor Emocional"),
+                                    React.createElement('div', { className: "bg-slate-50 p-5 rounded-3xl space-y-4 border border-slate-100" },
+                                        React.createElement('div', { className: "flex h-3 w-full rounded-full overflow-hidden bg-slate-200" },
+                                            MOODS.map(mood => {
+                                                const count = insights?.moodCounts[mood.id] || 0;
+                                                const percentage = (count / history.length) * 100;
+                                                if (percentage === 0) return null;
+                                                return React.createElement('div', { key: mood.id, style: { width: `${percentage}%` }, className: cn("h-full", mood.bg.replace('50', '500')) });
+                                            })
+                                        ),
+                                        React.createElement('div', { className: "flex flex-wrap gap-x-4 gap-y-2" },
+                                            MOODS.map(mood => {
+                                                const count = insights?.moodCounts[mood.id] || 0;
+                                                if (count === 0) return null;
+                                                return React.createElement('div', { key: mood.id, className: "flex items-center gap-1.5 text-[10px] font-bold text-slate-500" },
+                                                    React.createElement('div', { className: cn("w-2 h-2 rounded-full", mood.bg.replace('50', '500')) }), mood.label
+                                                );
+                                            })
+                                        )
+                                    )
+                                ),
+                                React.createElement('section', { className: "space-y-4" },
+                                    React.createElement('h3', { className: "text-sm font-bold text-slate-800" }, "Temas Recorrentes"),
+                                    React.createElement('div', { className: "bg-white border-2 border-dashed border-slate-100 p-6 rounded-3xl" },
+                                        insights?.topWords.length > 0 ? React.createElement('div', { className: "flex flex-wrap justify-center gap-3" },
+                                            insights.topWords.map(([word, count], i) => React.createElement('div', { key: word, className: cn("px-4 py-2 rounded-2xl font-bold", i === 0 ? "bg-indigo-600 text-white text-lg shadow-lg" : "bg-slate-100 text-slate-500 text-xs") }, word))
+                                        ) : React.createElement('p', { className: "text-center text-slate-400 text-sm" }, "Escreve mais para identificar temas.")
+                                    )
+                                )
+                            )
+                        )
+                    )
+                ),
+
+                React.createElement('footer', { className: "mt-12 text-center" },
+                    React.createElement('p', { className: "text-slate-300 text-[10px] uppercase tracking-widest font-black" }, "Intuição & Consciência © 2024")
+                ),
+
+                React.createElement('style', null, `
+                    @keyframes fade-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+                    .animate-fade-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+                `)
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = createRoot(container);
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
